@@ -252,6 +252,21 @@ tasks.getByName<DokkaAndroidTask>("dokka") {
     })
 }
 
+tasks.register<Delete>("prePrepareRelease") {
+    val versionName: String = Config.versionName
+    delete("$projectDir/releases/$versionName/")
+    doLast { mkdir("$projectDir/releases/$versionName") }
+}
+
+tasks.register<Copy>("prepareRelease") {
+    val versionName: String = Config.versionName
+    from("$buildDir/libs/cameraViewEx-$versionName-sources.jar", "$buildDir/outputs/aar/cameraViewEx-release.aar", "$buildDir/poms/pom-default.xml")
+    into("$projectDir/releases/$versionName/")
+    rename("cameraViewEx-(.+)", "cameraview-ex-$1")
+    rename("(.+)-release(.+)", "$1-$versionName$2")
+    rename("pom-default.xml", "cameraview-ex-$versionName.pom")
+}
+
 apply {
     from("publish.gradle")
 }
