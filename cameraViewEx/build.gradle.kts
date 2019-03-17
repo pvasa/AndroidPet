@@ -14,6 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import groovy.util.Node
+import org.gradle.jvm.tasks.Jar
 import org.jetbrains.dokka.DokkaConfiguration
 import org.jetbrains.dokka.gradle.DokkaAndroidTask
 import org.jetbrains.dokka.gradle.LinkMapping
@@ -27,9 +29,8 @@ plugins {
     kotlin("android.extensions")
     kotlin("kapt")
     id("org.jetbrains.dokka-android")
+    id("maven-publish")
 }
-
-ext { set("versionName", Config.versionName) }
 
 val srcDirs: Array<out String> = arrayOf(
     "src/main/java",
@@ -39,6 +40,10 @@ val srcDirs: Array<out String> = arrayOf(
     "src/main/api23",
     "src/main/api24"
 )
+
+group = "com.priyankvasa.android"
+version = Config.versionName
+description = "CameraViewEx highly simplifies integration of camera implementation and various camera features into any Android project. It uses new camera2 api with advanced features on API level 21 and higher and smartly switches to camera1 on older devices (API < 21)."
 
 android {
 
@@ -252,21 +257,80 @@ tasks.getByName<DokkaAndroidTask>("dokka") {
     })
 }
 
-tasks.register<Delete>("prePrepareRelease") {
-    val versionName: String = Config.versionName
-    delete("$projectDir/releases/$versionName/")
-    doLast { mkdir("$projectDir/releases/$versionName") }
+tasks.register<Jar>("sourcesJar") {
+    from(android.sourceSets["main"].java.srcDirs)
+    classifier = "sources"
 }
 
-tasks.register<Copy>("prepareRelease") {
-    val versionName: String = Config.versionName
-    from("$buildDir/libs/cameraViewEx-$versionName-sources.jar", "$buildDir/outputs/aar/cameraViewEx-release.aar", "$buildDir/poms/pom-default.xml")
-    into("$projectDir/releases/$versionName/")
-    rename("cameraViewEx-(.+)", "cameraview-ex-$1")
-    rename("(.+)-release(.+)", "$1-$versionName$2")
-    rename("pom-default.xml", "cameraview-ex-$versionName.pom")
+publishing {
+
+    publications {
+
+        create<MavenPublication>("cameraViewEx") {
+
+            groupId = project.group.toString()
+            artifactId = "cameraview-ex"
+            version = project.version.toString()
+
+            artifact("$buildDir/outputs/aar/cameraViewEx-release.aar")
+            artifact(tasks["sourcesJar"])
+
+            pom {
+                packaging = "aar"
+                name.set("CameraViewEx")
+                description.set(project.description)
+                url.set("https://github.com/pvasa/cameraview-ex")
+                inceptionYear.set("2018")
+                licenses {
+                    license {
+                        name.set("The Apache Software License, Version 2.0")
+                        url.set("http://www.apache.org/licenses/LICENSE-2.0.txt")
+                    }
+                }
+                developers {
+                    developer {
+                        id.set("pvasa")
+                        name.set("Priyank Vasa")
+                        email.set("pv.ryan14@gmail.com")
+                        organization.set("TradeRev")
+                        organizationUrl.set("https://www.traderev.com/en-ca/")
+                        url.set("https://priyankvasa.dev")
+                    }
+                }
+                scm {
+                    connection.set("scm:git:git://github.com/cameraview-ex.git")
+                    developerConnection.set("scm:git:ssh://github.com/cameraview-ex.git")
+                    url.set("https://github.com/cameraview-ex/")
+                }
+                withXml {
+                    val dependencies: Node = asNode().appendNode("dependencies")
+                    fun appendDependency(dependency: Dependency, scope: String) {
+                        dependencies.appendNode("dependency").apply {
+                            appendNode("groupId", dependency.group)
+                            appendNode("artifactId", dependency.name)
+                            appendNode("version", dependency.version)
+                            appendNode("scope", scope)
+                        }
+                    }
+                    configurations.implementation.dependencies.forEach { appendDependency(it, "runtime") }
+                }
+            }
+        }
+    }
+
+    repositories {
+
+        maven {
+            credentials(AwsCredentials::class) {
+                setAccessKey("access-key")
+                setSecretKey("secret-key")
+            }
+            url = uri("s3://pvasa-maven.s3.ca-central-1.amazonaws.com/")
+        }
+    }
 }
 
+/*
 apply {
     from("publish.gradle")
-}
+}*/

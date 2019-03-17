@@ -24,7 +24,7 @@ buildscript {
     }
 
     dependencies {
-        classpath("com.android.tools.build:gradle:3.3.1")
+        classpath("com.android.tools.build:gradle:3.3.2")
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:${Config.Versions.kotlin}")
         classpath("com.google.gms:google-services:${Config.Versions.googleServices}") // google-services plugin
         classpath("com.github.dcendents:android-maven-gradle-plugin:${Config.Versions.mavenGradlePlugin}")
@@ -39,6 +39,13 @@ allprojects {
         google()
         mavenCentral()
         jcenter()
+        maven {
+            credentials(AwsCredentials::class) {
+                setAccessKey("access-key")
+                setSecretKey("secret-key")
+            }
+            url = uri("s3://pvasa-maven.s3.ca-central-1.amazonaws.com/")
+        }
     }
 
     dependencies {
@@ -60,6 +67,6 @@ allprojects {
     }
 }
 
-tasks.create("clean", Delete::class.java) {
+tasks.create<Delete>("clean") {
     delete(rootProject.buildDir)
 }
